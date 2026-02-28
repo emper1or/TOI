@@ -1,0 +1,1234 @@
+<!doctype html>
+<html lang="ru">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Редактор конечного автомата Мили</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+                background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+                min-height: 100vh;
+                color: #fff;
+            }
+
+            .container {
+                display: flex;
+                height: 100vh;
+            }
+
+            /* Панель инструментов */
+            .toolbar {
+                width: 280px;
+                background: rgba(255, 255, 255, 0.1);
+                padding: 20px;
+                display: flex;
+                flex-direction: column;
+                gap: 15px;
+                backdrop-filter: blur(10px);
+                overflow-y: auto;
+            }
+
+            .toolbar h2 {
+                font-size: 18px;
+                margin-bottom: 10px;
+                color: #00d9ff;
+                text-align: center;
+            }
+
+            .btn {
+                padding: 12px 20px;
+                border: none;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 14px;
+                font-weight: 600;
+                transition: all 0.3s ease;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+            }
+
+            .btn-primary {
+                background: linear-gradient(135deg, #00d9ff, #0099cc);
+                color: #000;
+            }
+
+            .btn-primary:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 5px 20px rgba(0, 217, 255, 0.4);
+            }
+
+            .btn-success {
+                background: linear-gradient(135deg, #00ff88, #00cc6a);
+                color: #000;
+            }
+
+            .btn-success:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 5px 20px rgba(0, 255, 136, 0.4);
+            }
+
+            .btn-danger {
+                background: linear-gradient(135deg, #ff4757, #ff3838);
+                color: #fff;
+            }
+
+            .btn-danger:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 5px 20px rgba(255, 71, 87, 0.4);
+            }
+
+            .btn-warning {
+                background: linear-gradient(135deg, #ffa502, #ff7f00);
+                color: #000;
+            }
+
+            .btn-warning:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 5px 20px rgba(255, 165, 2, 0.4);
+            }
+
+            .section {
+                background: rgba(255, 255, 255, 0.05);
+                padding: 15px;
+                border-radius: 10px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+            }
+
+            .section h3 {
+                font-size: 14px;
+                margin-bottom: 10px;
+                color: #00d9ff;
+            }
+
+            .input-group {
+                display: flex;
+                gap: 8px;
+                margin-bottom: 10px;
+            }
+
+            .input-group input {
+                flex: 1;
+                padding: 8px 12px;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                border-radius: 6px;
+                background: rgba(255, 255, 255, 0.1);
+                color: #fff;
+                font-size: 13px;
+            }
+
+            .input-group input::placeholder {
+                color: rgba(255, 255, 255, 0.5);
+            }
+
+            .input-group input:focus {
+                outline: none;
+                border-color: #00d9ff;
+            }
+
+            select {
+                padding: 10px 15px;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                border-radius: 8px;
+                background: linear-gradient(135deg, #00d9ff, #0099cc);
+                color: #000;
+                font-size: 13px;
+                font-weight: 600;
+                cursor: pointer;
+                appearance: none;
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23000' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+                background-repeat: no-repeat;
+                background-position: right 12px center;
+                padding-right: 35px;
+            }
+
+            select option {
+                background: #1a1a2e;
+                color: #fff;
+                padding: 10px;
+            }
+
+            /* Список состояний и переходов */
+            .item-list {
+                max-height: 150px;
+                overflow-y: auto;
+                display: flex;
+                flex-direction: column;
+                gap: 5px;
+            }
+
+            .item {
+                background: rgba(255, 255, 255, 0.1);
+                padding: 8px 12px;
+                border-radius: 6px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                font-size: 13px;
+            }
+
+            .item-actions {
+                display: flex;
+                gap: 5px;
+            }
+
+            .item-actions button {
+                padding: 4px 8px;
+                font-size: 11px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+
+            .btn-edit {
+                background: #00d9ff;
+                color: #000;
+            }
+
+            .btn-delete {
+                background: #ff4757;
+                color: #fff;
+            }
+
+            /* Холст */
+            .canvas-container {
+                flex: 1;
+                position: relative;
+                overflow: hidden;
+            }
+
+            #graphCanvas {
+                width: 100%;
+                height: 100%;
+                cursor: crosshair;
+            }
+
+            /* Панель результатов */
+            .results-panel {
+                width: 450px;
+                background: rgba(255, 255, 255, 0.05);
+                padding: 20px;
+                display: flex;
+                flex-direction: column;
+                backdrop-filter: blur(10px);
+                border-left: 1px solid rgba(255, 255, 255, 0.1);
+                overflow-y: auto;
+            }
+
+            .results-panel h2 {
+                color: #00d9ff;
+                margin-bottom: 15px;
+                font-size: 18px;
+            }
+
+            #output {
+                background: rgba(0, 0, 0, 0.3);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 8px;
+                padding: 15px;
+                font-family: "Courier New", monospace;
+                font-size: 12px;
+                color: #00ff88;
+                white-space: pre;
+                overflow-x: auto;
+                flex: 1;
+                min-height: 400px;
+            }
+
+            /* Модальное окно */
+            .modal {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.7);
+                justify-content: center;
+                align-items: center;
+                z-index: 1000;
+            }
+
+            .modal.active {
+                display: flex;
+            }
+
+            .modal-content {
+                background: linear-gradient(135deg, #1a1a2e, #16213e);
+                padding: 30px;
+                border-radius: 15px;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                min-width: 350px;
+            }
+
+            .modal-content h3 {
+                color: #00d9ff;
+                margin-bottom: 20px;
+            }
+
+            .modal-content label {
+                display: block;
+                margin-bottom: 8px;
+                font-size: 14px;
+            }
+
+            .modal-content input {
+                width: 100%;
+                padding: 10px 15px;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                border-radius: 8px;
+                background: rgba(255, 255, 255, 0.1);
+                color: #fff;
+                font-size: 14px;
+                margin-bottom: 15px;
+            }
+
+            .modal-content input:focus {
+                outline: none;
+                border-color: #00d9ff;
+            }
+
+            .modal-actions {
+                display: flex;
+                gap: 10px;
+                justify-content: flex-end;
+                margin-top: 20px;
+            }
+
+            /* Подсказки */
+            .hints {
+                font-size: 12px;
+                color: rgba(255, 255, 255, 0.6);
+                margin-top: 10px;
+                padding: 10px;
+                background: rgba(255, 255, 255, 0.05);
+                border-radius: 6px;
+            }
+
+            .hints p {
+                margin-bottom: 5px;
+            }
+
+            /* Статус бар */
+            .status-bar {
+                position: absolute;
+                bottom: 10px;
+                left: 10px;
+                background: rgba(0, 0, 0, 0.7);
+                padding: 8px 15px;
+                border-radius: 20px;
+                font-size: 13px;
+                color: #00d9ff;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <!-- Панель инструментов -->
+            <div class="toolbar">
+                <h2>🎛️ Управление</h2>
+
+                <button class="btn btn-primary" onclick="addState()">
+                    ➕ Добавить состояние
+                </button>
+
+                <button class="btn btn-success" onclick="generateTables()">
+                    📊 Сгенерировать таблицы
+                </button>
+
+                <button class="btn btn-warning" onclick="generateRandomGraph()">
+                    🎲 Случайный граф
+                </button>
+
+                <button class="btn btn-danger" onclick="clearGraph()">
+                    🗑️ Очистить всё
+                </button>
+
+                <div class="section">
+                    <h3>📁 Загрузить пресет</h3>
+                    <select
+                        id="presetSelect"
+                        class="btn btn-primary"
+                        style="width: 100%; margin-bottom: 10px"
+                    >
+                        <option value="">Выберите пресет...</option>
+                        <option value="preset1">
+                            Пресет 1 (5 состояний, 11 переходов)
+                        </option>
+                        <option value="preset2">
+                            Пресет 2 (4 состояния, 8 переходов)
+                        </option>
+                    </select>
+                    <button
+                        class="btn btn-success"
+                        onclick="loadPreset()"
+                        style="width: 100%"
+                    >
+                        📥 Загрузить пресет
+                    </button>
+                </div>
+
+                <div class="section">
+                    <h3>📌 Состояния</h3>
+                    <div class="item-list" id="statesList"></div>
+                </div>
+
+                <div class="section">
+                    <h3>➡️ Переходы</h3>
+                    <div class="item-list" id="transitionsList"></div>
+                </div>
+
+                <div class="hints">
+                    <p>🖱️ <strong>Клик</strong> — выбрать состояние</p>
+                    <p>🖱️ <strong>Клик по другому</strong> — создать стрелку</p>
+                    <p>🖱️ <strong>Правый клик</strong> — петля (в себя)</p>
+                    <p>
+                        🖱️ <strong>Клик по стрелке</strong> — редактировать X/Y
+                    </p>
+                    <p>⚡ <strong>Drag</strong> — переместить состояние</p>
+                </div>
+            </div>
+
+            <!-- Холст -->
+            <div class="canvas-container">
+                <canvas id="graphCanvas"></canvas>
+                <div class="status-bar" id="statusBar">Готов к работе</div>
+            </div>
+
+            <!-- Панель результатов -->
+            <div class="results-panel">
+                <h2>📋 Результаты</h2>
+                <div id="output">
+                    Нажмите "Сгенерировать таблицы" для получения результатов...
+                </div>
+            </div>
+        </div>
+
+        <!-- Модальное окно для ввода X/Y -->
+        <div class="modal" id="transitionModal">
+            <div class="modal-content">
+                <h3 id="modalTitle">Переход</h3>
+                <label>Входной сигнал (X):</label>
+                <input
+                    type="text"
+                    id="inputX"
+                    placeholder="например, X0, X1, X2"
+                />
+                <label>Выходной сигнал (Y):</label>
+                <input
+                    type="text"
+                    id="inputY"
+                    placeholder="например, Y0, Y1, Y5"
+                />
+                <div class="modal-actions">
+                    <button class="btn btn-danger" onclick="closeModal()">
+                        Отмена
+                    </button>
+                    <button class="btn btn-success" onclick="saveTransition()">
+                        Сохранить
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // === Глобальные переменные ===
+            const canvas = document.getElementById("graphCanvas");
+            const ctx = canvas.getContext("2d");
+
+            let states = [];
+            let transitions = [];
+            let selectedState = null;
+            let draggedState = null;
+            let dragOffset = { x: 0, y: 0 };
+            let editingTransition = null;
+            let stateCounter = 0;
+
+            const NODE_RADIUS = 30;
+            const COLORS = {
+                node: "#00d9ff",
+                nodeSelected: "#00ff88",
+                nodeBg: "rgba(0, 217, 255, 0.2)",
+                transition: "#ffa502",
+                transitionText: "#ff4757",
+                text: "#ffffff",
+            };
+
+            // === Инициализация ===
+            function init() {
+                resizeCanvas();
+                window.addEventListener("resize", resizeCanvas);
+
+                canvas.addEventListener("mousedown", onMouseDown);
+                canvas.addEventListener("mousemove", onMouseMove);
+                canvas.addEventListener("mouseup", onMouseUp);
+                canvas.addEventListener("dblclick", onDoubleClick);
+                canvas.addEventListener("contextmenu", onRightClick);
+
+                // Добавляем начальные состояния
+                for (let i = 0; i < 5; i++) {
+                    addStateInternal(`S${i}`);
+                }
+                arrangeStatesCircular();
+                draw();
+                updateLists();
+            }
+
+            function resizeCanvas() {
+                canvas.width = canvas.parentElement.clientWidth;
+                canvas.height = canvas.parentElement.clientHeight;
+                draw();
+            }
+
+            // === Управление состояниями ===
+            function addState() {
+                const name = prompt(
+                    "Введите имя состояния (например, S5):",
+                    `S${stateCounter}`,
+                );
+                if (name && !states.find((s) => s.name === name)) {
+                    addStateInternal(name);
+                    arrangeStatesCircular();
+                    updateLists();
+                    draw();
+                    setStatus(`Добавлено состояние ${name}`);
+                }
+            }
+
+            function addStateInternal(name) {
+                states.push({
+                    name: name,
+                    x: canvas.width / 2,
+                    y: canvas.height / 2,
+                    id: stateCounter++,
+                });
+            }
+
+            function deleteState(stateName) {
+                if (
+                    confirm(
+                        `Удалить состояние ${stateName} и все связанные переходы?`,
+                    )
+                ) {
+                    states = states.filter((s) => s.name !== stateName);
+                    transitions = transitions.filter(
+                        (t) => t.from !== stateName && t.to !== stateName,
+                    );
+                    updateLists();
+                    arrangeStatesCircular();
+                    draw();
+                    setStatus(`Удалено состояние ${stateName}`);
+                }
+            }
+
+            function arrangeStatesCircular() {
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                const radius = Math.min(canvas.width, canvas.height) * 0.35;
+
+                states.forEach((state, i) => {
+                    const angle =
+                        (2 * Math.PI * i) / states.length - Math.PI / 2;
+                    state.x = centerX + radius * Math.cos(angle);
+                    state.y = centerY + radius * Math.sin(angle);
+                });
+            }
+
+            // === Управление переходами ===
+            function addTransition(from, to) {
+                editingTransition = { from, to, existing: null };
+
+                const existing = transitions.find(
+                    (t) => t.from === from && t.to === to,
+                );
+                if (existing) {
+                    editingTransition.existing = existing;
+                    document.getElementById("inputX").value = existing.x;
+                    document.getElementById("inputY").value = existing.y;
+                } else {
+                    document.getElementById("inputX").value = "";
+                    document.getElementById("inputY").value = "";
+                }
+
+                document.getElementById("modalTitle").textContent =
+                    `Переход: ${from} → ${to}`;
+                document
+                    .getElementById("transitionModal")
+                    .classList.add("active");
+                document.getElementById("inputX").focus();
+            }
+
+            function saveTransition() {
+                const x = document.getElementById("inputX").value.trim();
+                const y = document.getElementById("inputY").value.trim();
+
+                if (!x || !y) {
+                    alert("Введите оба значения (X и Y)");
+                    return;
+                }
+
+                if (editingTransition.existing) {
+                    editingTransition.existing.x = x;
+                    editingTransition.existing.y = y;
+                } else {
+                    transitions.push({
+                        from: editingTransition.from,
+                        to: editingTransition.to,
+                        x: x,
+                        y: y,
+                    });
+                }
+
+                closeModal();
+                updateLists();
+                draw();
+                setStatus(
+                    `Переход ${editingTransition.from} → ${editingTransition.to} сохранён`,
+                );
+            }
+
+            function deleteTransition(from, to) {
+                if (confirm(`Удалить переход ${from} → ${to}?`)) {
+                    transitions = transitions.filter(
+                        (t) => !(t.from === from && t.to === to),
+                    );
+                    updateLists();
+                    draw();
+                    setStatus(`Переход удалён`);
+                }
+            }
+
+            function closeModal() {
+                document
+                    .getElementById("transitionModal")
+                    .classList.remove("active");
+                editingTransition = null;
+            }
+
+            // === Обработчики событий мыши ===
+            function onMouseDown(e) {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                // Проверяем клик по состоянию
+                for (const state of states) {
+                    const dx = x - state.x;
+                    const dy = y - state.y;
+                    if (dx * dx + dy * dy <= NODE_RADIUS * NODE_RADIUS) {
+                        if (selectedState && selectedState !== state) {
+                            // Создаём переход
+                            addTransition(selectedState.name, state.name);
+                        }
+                        selectedState = state;
+                        draggedState = state;
+                        dragOffset = { x: dx, y: dy };
+                        draw();
+                        updateLists();
+                        setStatus(`Выбрано: ${state.name}`);
+                        return;
+                    }
+                }
+
+                // Проверяем клик по переходу
+                const clickedTransition = findTransitionAtPoint(x, y);
+                if (clickedTransition) {
+                    editingTransition = {
+                        from: clickedTransition.from,
+                        to: clickedTransition.to,
+                        existing: clickedTransition,
+                    };
+                    document.getElementById("inputX").value =
+                        clickedTransition.x;
+                    document.getElementById("inputY").value =
+                        clickedTransition.y;
+                    document.getElementById("modalTitle").textContent =
+                        `Редактировать: ${clickedTransition.from} → ${clickedTransition.to}`;
+                    document
+                        .getElementById("transitionModal")
+                        .classList.add("active");
+                    setStatus(`Редактирование перехода`);
+                } else {
+                    selectedState = null;
+                    draw();
+                    updateLists();
+                }
+            }
+
+            function onMouseMove(e) {
+                if (draggedState) {
+                    const rect = canvas.getBoundingClientRect();
+                    draggedState.x = e.clientX - rect.left - dragOffset.x;
+                    draggedState.y = e.clientY - rect.top - dragOffset.y;
+                    draw();
+                }
+            }
+
+            function onMouseUp() {
+                draggedState = null;
+            }
+
+            function onRightClick(e) {
+                e.preventDefault();
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                // Проверяем клик по состоянию
+                for (const state of states) {
+                    const dx = x - state.x;
+                    const dy = y - state.y;
+                    if (dx * dx + dy * dy <= NODE_RADIUS * NODE_RADIUS) {
+                        // Создаём петлю (переход в себя)
+                        addTransition(state.name, state.name);
+                        return;
+                    }
+                }
+            }
+
+            function onDoubleClick(e) {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                // Проверяем клик по переходу для удаления
+                const clickedTransition = findTransitionAtPoint(x, y);
+                if (clickedTransition) {
+                    deleteTransition(
+                        clickedTransition.from,
+                        clickedTransition.to,
+                    );
+                }
+            }
+
+            function findTransitionAtPoint(x, y) {
+                for (const t of transitions) {
+                    const fromState = states.find((s) => s.name === t.from);
+                    const toState = states.find((s) => s.name === t.to);
+                    if (!fromState || !toState) continue;
+
+                    const labelPos = getTransitionLabelPosition(
+                        fromState,
+                        toState,
+                    );
+                    const dx = x - labelPos.x;
+                    const dy = y - labelPos.y;
+                    if (dx * dx + dy * dy <= 15 * 15) {
+                        return t;
+                    }
+                }
+                return null;
+            }
+
+            // === Отрисовка ===
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Рисуем переходы
+                for (const t of transitions) {
+                    drawTransition(t);
+                }
+
+                // Рисуем состояния
+                for (const state of states) {
+                    drawState(state);
+                }
+            }
+
+            function drawState(state) {
+                ctx.beginPath();
+                ctx.arc(state.x, state.y, NODE_RADIUS, 0, 2 * Math.PI);
+
+                const gradient = ctx.createRadialGradient(
+                    state.x - 10,
+                    state.y - 10,
+                    0,
+                    state.x,
+                    state.y,
+                    NODE_RADIUS,
+                );
+
+                if (state === selectedState) {
+                    gradient.addColorStop(0, "#00ff88");
+                    gradient.addColorStop(1, "#00cc6a");
+                } else {
+                    gradient.addColorStop(0, "#00d9ff");
+                    gradient.addColorStop(1, "#0099cc");
+                }
+
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                ctx.strokeStyle = "#fff";
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.fillStyle = "#000";
+                ctx.font = "bold 14px Arial";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(state.name, state.x, state.y);
+            }
+
+            function drawTransition(t) {
+                const fromState = states.find((s) => s.name === t.from);
+                const toState = states.find((s) => s.name === t.to);
+                if (!fromState || !toState) return;
+
+                const isLoop = t.from === t.to;
+
+                if (isLoop) {
+                    drawLoopTransition(t, fromState);
+                } else {
+                    drawNormalTransition(t, fromState, toState);
+                }
+            }
+
+            function drawNormalTransition(t, fromState, toState) {
+                const dx = toState.x - fromState.x;
+                const dy = toState.y - fromState.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const nx = dx / dist;
+                const ny = dy / dist;
+
+                const startX = fromState.x + nx * NODE_RADIUS;
+                const startY = fromState.y + ny * NODE_RADIUS;
+                const endX = toState.x - nx * NODE_RADIUS;
+                const endY = toState.y - ny * NODE_RADIUS;
+
+                // Линия
+                ctx.beginPath();
+                ctx.moveTo(startX, startY);
+                ctx.lineTo(endX, endY);
+                ctx.strokeStyle = COLORS.transition;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Стрелка
+                const arrowSize = 10;
+                const angle = Math.atan2(dy, dx);
+                ctx.beginPath();
+                ctx.moveTo(endX, endY);
+                ctx.lineTo(
+                    endX - arrowSize * Math.cos(angle - Math.PI / 6),
+                    endY - arrowSize * Math.sin(angle - Math.PI / 6),
+                );
+                ctx.lineTo(
+                    endX - arrowSize * Math.cos(angle + Math.PI / 6),
+                    endY - arrowSize * Math.sin(angle + Math.PI / 6),
+                );
+                ctx.closePath();
+                ctx.fillStyle = COLORS.transition;
+                ctx.fill();
+
+                // Метка
+                const labelPos = getTransitionLabelPosition(fromState, toState);
+                ctx.fillStyle = COLORS.transitionText;
+                ctx.font = "bold 12px Arial";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(`${t.x}/${t.y}`, labelPos.x, labelPos.y);
+            }
+
+            function drawLoopTransition(t, state) {
+                const loopSize = 40;
+                const centerX = state.x;
+                const centerY = state.y - NODE_RADIUS - loopSize / 2;
+
+                ctx.beginPath();
+                ctx.ellipse(
+                    centerX,
+                    centerY,
+                    loopSize / 2,
+                    loopSize,
+                    0,
+                    0,
+                    2 * Math.PI,
+                );
+                ctx.strokeStyle = COLORS.transition;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Стрелка
+                const arrowX = centerX;
+                const arrowY = state.y - NODE_RADIUS;
+                ctx.beginPath();
+                ctx.moveTo(arrowX, arrowY);
+                ctx.lineTo(arrowX - 5, arrowY + 8);
+                ctx.lineTo(arrowX + 5, arrowY + 8);
+                ctx.closePath();
+                ctx.fillStyle = COLORS.transition;
+                ctx.fill();
+
+                // Метка
+                ctx.fillStyle = COLORS.transitionText;
+                ctx.font = "bold 12px Arial";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(`${t.x}/${t.y}`, centerX, centerY - loopSize - 10);
+            }
+
+            function getTransitionLabelPosition(fromState, toState) {
+                const midX = (fromState.x + toState.x) / 2;
+                const midY = (fromState.y + toState.y) / 2;
+                const dx = toState.x - fromState.x;
+                const dy = toState.y - fromState.y;
+                const offset = 15;
+                return {
+                    x: midX - dy * 0.1,
+                    y: midY + dx * 0.1,
+                };
+            }
+
+            // === Обновление списков ===
+            function updateLists() {
+                const statesList = document.getElementById("statesList");
+                statesList.innerHTML = states
+                    .map(
+                        (s) => `
+                <div class="item">
+                    <span>${s.name}</span>
+                    <div class="item-actions">
+                        <button class="btn-delete" onclick="deleteState('${s.name}')">✕</button>
+                    </div>
+                </div>
+            `,
+                    )
+                    .join("");
+
+                const transitionsList =
+                    document.getElementById("transitionsList");
+                transitionsList.innerHTML = transitions
+                    .map(
+                        (t) => `
+                <div class="item">
+                    <span>${t.from} → ${t.to} (${t.x}/${t.y})</span>
+                    <div class="item-actions">
+                        <button class="btn-edit" onclick="editTransition('${t.from}', '${t.to}')">✎</button>
+                        <button class="btn-delete" onclick="deleteTransition('${t.from}', '${t.to}')">✕</button>
+                    </div>
+                </div>
+            `,
+                    )
+                    .join("");
+            }
+
+            function editTransition(from, to) {
+                const t = transitions.find(
+                    (tr) => tr.from === from && tr.to === to,
+                );
+                if (t) {
+                    editingTransition = { from, to, existing: t };
+                    document.getElementById("inputX").value = t.x;
+                    document.getElementById("inputY").value = t.y;
+                    document.getElementById("modalTitle").textContent =
+                        `Переход: ${from} → ${to}`;
+                    document
+                        .getElementById("transitionModal")
+                        .classList.add("active");
+                }
+            }
+
+            // === Генерация таблиц ===
+            function generateTables() {
+                if (transitions.length === 0) {
+                    alert("Добавьте хотя бы один переход!");
+                    return;
+                }
+
+                const inputs = [...new Set(transitions.map((t) => t.x))].sort();
+                const outputs = [
+                    ...new Set(transitions.map((t) => t.y)),
+                ].sort();
+
+                const sBits = Math.max(1, Math.ceil(Math.log2(states.length)));
+                const xBits = Math.max(1, Math.ceil(Math.log2(inputs.length)));
+                const yBits = Math.max(1, Math.ceil(Math.log2(outputs.length)));
+
+                const sMap = Object.fromEntries(
+                    states.map((s, i) => [
+                        s.name,
+                        i.toString(2).padStart(sBits, "0"),
+                    ]),
+                );
+                const xMap = Object.fromEntries(
+                    inputs.map((x, i) => [
+                        x,
+                        i.toString(2).padStart(xBits, "0"),
+                    ]),
+                );
+                const yMap = Object.fromEntries(
+                    outputs.map((y, i) => [
+                        y,
+                        i.toString(2).padStart(yBits, "0"),
+                    ]),
+                );
+
+                // Lookup: ключ "from-x" => значение {to, y}
+                const lookup = new Map();
+                for (const t of transitions) {
+                    const key = `${t.from}-${t.x}`;
+                    lookup.set(key, { to: t.to, y: t.y });
+                }
+
+                let out = "=".repeat(80) + "\n";
+                out += "ТАБЛИЦА 1: КОДИРОВАНИЕ ЭЛЕМЕНТОВ\n";
+                out += "=".repeat(80) + "\n\n";
+
+                out += "Состояния (S → Q):\n";
+                for (const [s, code] of Object.entries(sMap)) {
+                    out += `  ${s} = ${code}\n`;
+                }
+                out += "\n";
+
+                out += "Входные сигналы (X):\n";
+                for (const [x, code] of Object.entries(xMap)) {
+                    out += `  ${x} = ${code}\n`;
+                }
+                out += "\n";
+
+                out += "Выходные сигналы (Y):\n";
+                for (const [y, code] of Object.entries(yMap)) {
+                    out += `  ${y} = ${code}\n`;
+                }
+                out += "\n";
+
+                // Таблица 2: строки X, столбцы S
+                out += "=".repeat(80) + "\n";
+                out += "ТАБЛИЦА 2: ТАБЛИЦА ПЕРЕХОДОВ-РЕАКЦИЙ (матрица)\n";
+                out += "=".repeat(80) + "\n\n";
+
+                let header =
+                    "X \\ S | " +
+                    states.map((s) => s.name.padEnd(8)).join(" | ") +
+                    "\n";
+                out += "-".repeat(header.length) + "\n";
+                out += header;
+                out += "-".repeat(header.length) + "\n";
+
+                for (const x of inputs) {
+                    let row = `${x.padEnd(6)} | `;
+                    const cells = states.map((s) => {
+                        const key = `${s.name}-${x}`;
+                        if (lookup.has(key)) {
+                            const { to: next, y } = lookup.get(key);
+                            return `${next}/${y.padEnd(6)}`;
+                        }
+                        return "*".padEnd(8);
+                    });
+                    row += cells.join(" | ") + "\n";
+                    out += row;
+                }
+                out += "\n";
+
+                // Таблица 3
+                out += "=".repeat(80) + "\n";
+                out += "ТАБЛИЦА 3: СВОДНАЯ ТАБЛИЦА ИСТИННОСТИ\n";
+                out += "=".repeat(80) + "\n\n";
+
+                const xBitHeaders = Array.from(
+                    { length: xBits },
+                    (_, i) => `x${xBits - 1 - i}`,
+                ).join(" ");
+                const qBitHeaders = Array.from(
+                    { length: sBits },
+                    (_, i) => `Q${sBits - 1 - i}`,
+                ).join(" ");
+                const qBitHeadersNext = Array.from(
+                    { length: sBits },
+                    (_, i) => `q${sBits - 1 - i}`,
+                ).join(" ");
+                const yBitHeaders = Array.from(
+                    { length: yBits },
+                    (_, i) => `y${yBits - 1 - i}`,
+                ).join(" ");
+
+                const headerLine = `${xBitHeaders} || ${qBitHeaders} | ${qBitHeadersNext} | ${yBitHeaders}\n`;
+
+                out += headerLine;
+                out += "-".repeat(headerLine.length) + "\n";
+
+                // Сначала X, потом S (сортировка по X)
+                for (const x of inputs) {
+                    for (const s of states) {
+                        const bX = xMap[x];
+                        const bQ = sMap[s.name];
+                        const key = `${s.name}-${x}`;
+
+                        let bQ_next, bY;
+                        if (lookup.has(key)) {
+                            const { to: next, y } = lookup.get(key);
+                            bQ_next = sMap[next];
+                            bY = yMap[y];
+                        } else {
+                            bQ_next = "*".repeat(sBits);
+                            bY = "*".repeat(yBits);
+                        }
+
+                        const line = `${bX} | ${bQ} | ${bQ_next} | ${bY}\n`;
+                        out += line;
+                    }
+                }
+
+                document.getElementById("output").textContent = out;
+                setStatus("Таблицы сгенерированы");
+            }
+
+            // === Случайный граф ===
+            function generateRandomGraph() {
+                const nStates =
+                    parseInt(prompt("Количество состояний (3-8):", "5")) || 5;
+                const nTransitions =
+                    parseInt(prompt("Количество переходов:", "10")) || 10;
+
+                states = [];
+                transitions = [];
+                stateCounter = 0;
+
+                for (let i = 0; i < nStates; i++) {
+                    addStateInternal(`S${i}`);
+                }
+                arrangeStatesCircular();
+
+                const inputs = ["X0", "X1", "X2"];
+                const outputs = ["Y0", "Y1", "Y2", "Y3", "Y4", "Y5"];
+                const usedCombos = new Set();
+
+                for (let i = 0; i < nTransitions; i++) {
+                    const from =
+                        states[Math.floor(Math.random() * states.length)];
+                    const to =
+                        states[Math.floor(Math.random() * states.length)];
+                    let x = inputs[Math.floor(Math.random() * inputs.length)];
+
+                    let attempts = 0;
+                    while (
+                        usedCombos.has(`${from.name}-${x}`) &&
+                        attempts < 10
+                    ) {
+                        x = inputs[Math.floor(Math.random() * inputs.length)];
+                        attempts++;
+                    }
+
+                    if (!usedCombos.has(`${from.name}-${x}`)) {
+                        usedCombos.add(`${from.name}-${x}`);
+                        const y =
+                            outputs[Math.floor(Math.random() * outputs.length)];
+                        transitions.push({
+                            from: from.name,
+                            to: to.name,
+                            x,
+                            y,
+                        });
+                    }
+                }
+
+                updateLists();
+                draw();
+                setStatus(`Сгенерировано ${transitions.length} переходов`);
+            }
+
+            // === Пресеты ===
+            const PRESETS = {
+                preset1: [
+                    { from: "S0", to: "S0", x: "X0", y: "Y5" },
+                    { from: "S0", to: "S1", x: "X1", y: "Y1" },
+                    { from: "S1", to: "S0", x: "X0", y: "Y0" },
+                    { from: "S1", to: "S1", x: "X1", y: "Y1" },
+                    { from: "S1", to: "S3", x: "X2", y: "Y0" },
+                    { from: "S1", to: "S4", x: "X3", y: "Y2" },
+                    { from: "S2", to: "S4", x: "X0", y: "Y0" },
+                    { from: "S2", to: "S0", x: "X1", y: "Y4" },
+                    { from: "S3", to: "S2", x: "X0", y: "Y6" },
+                    { from: "S4", to: "S3", x: "X0", y: "Y3" },
+                    { from: "S4", to: "S4", x: "X1", y: "Y4" },
+                ],
+                preset2: [
+                    { from: "S0", to: "S1", x: "X1", y: "Y0" },
+                    { from: "S0", to: "S2", x: "X0", y: "Y2" },
+                    { from: "S1", to: "S1", x: "X1", y: "Y1" },
+                    { from: "S1", to: "S2", x: "X0", y: "Y2" },
+                    { from: "S2", to: "S1", x: "X1", y: "Y0" },
+                    { from: "S2", to: "S3", x: "X0", y: "Y3" },
+                    { from: "S3", to: "S3", x: "X0", y: "Y4" },
+                    { from: "S3", to: "S0", x: "X1", y: "Y0" },
+                ],
+            };
+
+            function loadPreset() {
+                const select = document.getElementById("presetSelect");
+                const presetName = select.value;
+
+                if (!presetName) {
+                    alert("Выберите пресет из списка!");
+                    return;
+                }
+
+                const preset = PRESETS[presetName];
+                if (!preset) {
+                    alert("Пресет не найден!");
+                    return;
+                }
+
+                // Очищаем текущий граф
+                states = [];
+                transitions = [];
+                stateCounter = 0;
+
+                // Собираем уникальные состояния из пресета
+                const stateNames = new Set();
+                for (const t of preset) {
+                    stateNames.add(t.from);
+                    stateNames.add(t.to);
+                }
+
+                // Создаём состояния
+                for (const name of stateNames) {
+                    addStateInternal(name);
+                }
+
+                // Размещаем по кругу
+                arrangeStatesCircular();
+
+                // Копируем переходы
+                transitions = preset.map((t) => ({ ...t }));
+
+                updateLists();
+                draw();
+                setStatus(
+                    `Загружен пресет: ${presetName} (${states.length} состояний, ${transitions.length} переходов)`,
+                );
+            }
+
+            // === Очистка ===
+            function clearGraph() {
+                if (confirm("Удалить все состояния и переходы?")) {
+                    states = [];
+                    transitions = [];
+                    selectedState = null;
+                    stateCounter = 0;
+                    document.getElementById("output").textContent =
+                        'Нажмите "Сгенерировать таблицы" для получения результатов...';
+                    updateLists();
+                    draw();
+                    setStatus("Граф очищен");
+                }
+            }
+
+            // === Утилиты ===
+            function setStatus(message) {
+                document.getElementById("statusBar").textContent = message;
+            }
+
+            // Запуск
+            init();
+        </script>
+    </body>
+</html>
