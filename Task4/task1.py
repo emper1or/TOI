@@ -116,6 +116,12 @@ class ConvolutionApp:
         ttk.Label(controls, text=info_text, wraplength=240, justify=tk.LEFT).pack(
             anchor=tk.W, pady=(16, 0)
         )
+        ttk.Label(
+            controls,
+            textvariable=self.status_var,
+            wraplength=240,
+            justify=tk.LEFT,
+        ).pack(anchor=tk.W, fill=tk.X, pady=(12, 0))
 
         preview_area = ttk.Frame(container)
         preview_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(12, 0))
@@ -125,10 +131,6 @@ class ConvolutionApp:
         )
         self.filtered_label = self._create_preview_block(
             preview_area, "Результат фильтрации", 1
-        )
-
-        ttk.Label(container, textvariable=self.status_var, wraplength=1060).pack(
-            side=tk.BOTTOM, fill=tk.X, pady=(12, 0)
         )
 
     def _create_preview_block(
