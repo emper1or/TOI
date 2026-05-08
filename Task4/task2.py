@@ -66,6 +66,7 @@ class LetterRecognitionApp:
 
         self.grid_state = [[0 for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
         self.cell_rectangles: list[list[int]] = []
+        self.draw_value: int | None = None
 
         self.alphabet_var = tk.StringVar(
             value="Доступный алфавит: " + ", ".join(LETTER_PATTERNS.keys())
@@ -98,7 +99,9 @@ class LetterRecognitionApp:
             highlightthickness=0,
         )
         self.canvas.pack()
-        self.canvas.bind("<Button-1>", self.on_canvas_click)
+        self.canvas.bind("<Button-1>", self.start_draw)
+        self.canvas.bind("<B1-Motion>", self.on_canvas_drag)
+        self.canvas.bind("<ButtonRelease-1>", self.stop_draw)
 
         button_row = ttk.Frame(grid_frame)
         button_row.pack(fill=tk.X, pady=(12, 0))
@@ -189,13 +192,47 @@ class LetterRecognitionApp:
                 rectangle_row.append(rect_id)
             self.cell_rectangles.append(rectangle_row)
 
-    def on_canvas_click(self, event: tk.Event[tk.Canvas]) -> None:
-        # Переключает состояние клетки, по которой кликнул пользователь.
+    def start_draw(self, event: tk.Event[tk.Canvas]) -> None:
+        # Определяет режим рисования по первой клетке: закрашивание или стирание.
+        cell = self._cell_from_event(event)
+        if cell is None:
+            return
+
+        row, col = cell
+        self.draw_value = 0 if self.grid_state[row][col] else 1
+        self._paint_cell(row, col, self.draw_value)
+
+    def on_canvas_drag(self, event: tk.Event[tk.Canvas]) -> None:
+        # Пока кнопка зажата, применяет выбранный режим ко всем пройденным клеткам.
+        if self.draw_value is None:
+            return
+
+        cell = self._cell_from_event(event)
+        if cell is None:
+            return
+
+        row, col = cell
+        self._paint_cell(row, col, self.draw_value)
+
+    def stop_draw(self, event: tk.Event[tk.Canvas]) -> None:
+        # Завершает режим непрерывного рисования после отпускания кнопки.
+        self.draw_value = None
+
+    def _cell_from_event(self, event: tk.Event[tk.Canvas]) -> tuple[int, int] | None:
+        # Преобразует координаты курсора в индексы ячейки сетки.
         row = event.y // CELL_SIZE
         col = event.x // CELL_SIZE
         if 0 <= row < GRID_SIZE and 0 <= col < GRID_SIZE:
-            self.grid_state[row][col] ^= 1
-            self._refresh_cell(row, col)
+            return row, col
+        return None
+
+    def _paint_cell(self, row: int, col: int, value: int) -> None:
+        # Устанавливает для ячейки конкретное бинарное значение.
+        if self.grid_state[row][col] == value:
+            return
+
+        self.grid_state[row][col] = value
+        self._refresh_cell(row, col)
 
     def _refresh_cell(self, row: int, col: int) -> None:
         # Обновляет цвет одной ячейки в зависимости от ее бинарного значения.
