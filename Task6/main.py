@@ -9,79 +9,112 @@ from PIL import Image, ImageTk
 # ---------- АЛГОРИТМЫ ОБРАБОТКИ (ИЗ ПЕРВОГО КОДА) ----------
 
 
-def binarize_image(img_grayscale):
-    """Бинаризация: объекты — 1, фон — 0"""
-    _, binary = cv2.threshold(img_grayscale, 127, 1, cv2.THRESH_BINARY_INV)
-    return binary
+def print_matrix(mat, title):
+    print(title)
+    for row in mat:
+        print(" ".join(f"{val:2}" for val in row))
+    print()
+
+
+# ТВОИ АЛГОРИТМЫ
+def dfs_method(mat):
+    rows = len(mat)
+    cols = len(mat[0])
+
+    print("\n=== Рекурсивный метод ===")
+    print_matrix(mat, "Исходная матрица:")
+
+    def dfs(r, c, label, depth=0):
+        indent = "  " * depth
+        if r < 0 or r >= rows or c < 0 or c >= cols:
+            print(f"{indent}Клетка ({r}, {c}) вне матрицы, возврат")
+            return
+        if mat[r][c] != 1:
+            print(
+                f"{indent}Клетка ({r}, {c}) уже не равна 1 "
+                f"(значение: {mat[r][c]}), возврат"
+            )
+            return
+
+        print(f"{indent}Клетка ({r}, {c}) получает метку {label}")
+        mat[r][c] = label
+        dfs(r + 1, c, label, depth + 1)
+        dfs(r - 1, c, label, depth + 1)
+        dfs(r, c + 1, label, depth + 1)
+        dfs(r, c - 1, label, depth + 1)
 
 
 def label_recursive(image):
     image = image.copy().astype(np.int32)
     h, w = image.shape
     label = 2
-    directions = [(-1, 0), (0, 1), (1, 0), (0, -1)]
-
-    for y in range(h):
-        for x in range(w):
-            if image[y, x] == 1:
-                # DFS на стеке
-                stack = [(x, y)]
-                image[y, x] = label
-                while stack:
-                    cx, cy = stack.pop()
-                    for dx, dy in directions:
-                        nx, ny = cx + dx, cy + dy
-                        if 0 <= nx < w and 0 <= ny < h:
-                            if image[ny, nx] == 1:
-                                image[ny, nx] = label
-                                stack.append((nx, ny))
+    count = 0
+    for i in range(rows):
+        for j in range(cols):
+            if mat[i][j] == 1:
+                print(f"Найден новый объект в клетке ({i}, {j}), метка {label}")
+                dfs(i, j, label)
+                print_matrix(mat, f"Матрица после обработки объекта {label}:")
                 label += 1
-    return image
+                count += 1
+    print(f"Рекурсивный метод завершен. Найдено объектов: {count}")
+    return mat, count
 
 
-def label_two_pass(image):
-    image = image.copy().astype(np.int32)
-    h, w = image.shape
-    labels = np.zeros_like(image, dtype=np.int32)
-    parent = {}
-    current_label = 2
+def row_method(mat):
+    rows = len(mat)
+    cols = len(mat[0])
+    label = 2
+    equivalence = []
 
-    def find(x):
-        while parent[x] != x:
-            parent[x] = parent[parent[x]]
-            x = parent[x]
-        return x
+    print("\n=== Построчный метод ===")
+    print_matrix(mat, "Исходная матрица:")
 
-    def union(a, b):
-        ra, rb = find(a), find(b)
-        if ra != rb:
-            parent[rb] = ra
+    for i in range(rows):
+        print(f"Обработка строки {i}")
+        for j in range(cols):
+            if mat[i][j] == 1:
+                left = mat[i][j - 1] if j > 0 else 0
+                up = mat[i - 1][j] if i > 0 else 0
+                print(f"  Клетка ({i}, {j}): left={left}, up={up}")
+                if left == 0 and up == 0:
+                    mat[i][j] = label
+                    print(f"    Соседей нет, назначена новая метка {label}")
+                    label += 1
+                elif left != 0 and up == 0:
+                    mat[i][j] = left
+                    print(f"    Взята метка слева: {left}")
+                elif left == 0 and up != 0:
+                    mat[i][j] = up
+                    print(f"    Взята метка сверху: {up}")
+                else:
+                    mat[i][j] = left
+                    print(f"    Взята метка слева: {left}")
+                    if left != up:
+                        equivalence.append((up, left))
+                        print(f"    Добавлена эквивалентность: {up} -> {left}")
+        print_matrix(mat, f"Матрица после строки {i}:")
 
-    for y in range(h):
-        for x in range(w):
-            if image[y, x] == 0:
-                continue
-            neighbors = []
-            if y > 0 and labels[y - 1, x] > 0:
-                neighbors.append(labels[y - 1, x])
-            if x > 0 and labels[y, x - 1] > 0:
-                neighbors.append(labels[y, x - 1])
+    if equivalence:
+        print(f"Эквивалентные метки для объединения: {equivalence}")
+    else:
+        print("Эквивалентных меток нет")
 
-            if len(neighbors) == 0:
-                labels[y, x] = current_label
-                parent[current_label] = current_label
-                current_label += 1
-            else:
-                smallest = min(neighbors)
-                labels[y, x] = smallest
-                for n in neighbors:
-                    union(smallest, n)
+    for a, b in equivalence:
+        print(f"Замена метки {a} на {b}")
+        for i in range(rows):
+            for j in range(cols):
+                if mat[i][j] == a:
+                    mat[i][j] = b
+        print_matrix(mat, f"Матрица после замены {a} -> {b}:")
 
-    for y in range(h):
-        for x in range(w):
-            if labels[y, x] > 0:
-                labels[y, x] = find(labels[y, x])
-    return labels
+    unique = set()
+    for row in mat:
+        for val in row:
+            if val > 1:
+                unique.add(val)
+    print(f"Построчный метод завершен. Найдено объектов: {len(unique)}")
+    return mat, len(unique)
 
 
 def color_labels(labels):
