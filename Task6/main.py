@@ -1,12 +1,20 @@
 import copy
 import tkinter as tk
-from tkinter import filedialog, ttk
+from tkinter import messagebox
 
-import cv2
-import numpy as np
-from PIL import Image, ImageTk
-
-# ---------- АЛГОРИТМЫ ОБРАБОТКИ (ИЗ ПЕРВОГО КОДА) ----------
+# ТВОЯ МАТРИЦА
+matrix = [
+    [0, 1, 1, 0, 0, 0, 1, 0, 0, 0],
+    [0, 1, 1, 1, 1, 1, 1, 0, 0, 0],
+    [0, 0, 1, 0, 0, 1, 1, 1, 1, 1],
+    [1, 1, 1, 0, 0, 0, 0, 0, 1, 1],
+    [1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
+    [0, 1, 0, 1, 1, 0, 0, 0, 0, 0],
+    [0, 1, 0, 0, 0, 0, 0, 1, 1, 0],
+    [0, 1, 0, 0, 0, 0, 0, 1, 1, 0],
+    [0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+]
 
 
 def print_matrix(mat, title):
@@ -43,10 +51,6 @@ def dfs_method(mat):
         dfs(r, c + 1, label, depth + 1)
         dfs(r, c - 1, label, depth + 1)
 
-
-def label_recursive(image):
-    image = image.copy().astype(np.int32)
-    h, w = image.shape
     label = 2
     count = 0
     for i in range(rows):
@@ -117,185 +121,97 @@ def row_method(mat):
     return mat, len(unique)
 
 
-def color_labels(labels):
-    h, w = labels.shape
-    colored = np.zeros((h, w, 3), dtype=np.uint8)
-    unique_labels = np.unique(labels)
-    np.random.seed(42)
-    colors = {0: (0, 0, 0)}
-
-    for label in unique_labels:
-        if label != 0:
-            colors[label] = (
-                np.random.randint(50, 255),
-                np.random.randint(50, 255),
-                np.random.randint(50, 255),
-            )
-
-    for y in range(h):
-        for x in range(w):
-            colored[y, x] = colors[labels[y, x]]
-    return colored
+# --- ИНТЕРФЕЙС (UI) ---
 
 
-# --- ИНТЕРФЕЙС ПРИЛОЖЕНИЯ ---
-
-
-class ConnectedComponentsApp:
+class App:
     def __init__(self, root):
         self.root = root
-        self.root.title("Анализ связных компонентов")
-        self.root.geometry("1000x600")
-        self.root.minimum_size = (800, 500)
+        self.root.title("Маркировка изображений")
+        self.cells = []
+        self.current_matrix = copy.deepcopy(matrix)
 
-        # Хранилище для оригинальных OpenCV изображений (чтобы не терять качество при ресайзе)
-        self.img_orig_cv = None
-        self.img_rec_cv = None
-        self.img_two_cv = None
-
-        # Ссылки на объекты ImageTk (Tkinter зануляет их, если не держать ссылку)
-        self.photo_orig = None
-        self.photo_rec = None
-        self.photo_two = None
+        # Палитра цветов для маркеров (10, 20, 30...)
+        self.colors = {0: "white", 1: "gray"}
+        self.marker_colors = [
+            "#FF5733",
+            "#33FF57",
+            "#3357FF",
+            "#F333FF",
+            "#FFF333",
+            "#33FFF3",
+        ]
 
         self.create_widgets()
+        self.draw_matrix()
 
     def create_widgets(self):
-        # Верхняя панель управления
-        top_panel = tk.Frame(self.root, pady=10)
-        top_panel.pack(side=tk.TOP, fill=tk.X)
+        # Сетка
+        self.grid_frame = tk.Frame(self.root)
+        self.grid_frame.pack(pady=10)
 
-        btn_select = tk.Button(
-            top_panel,
-            text="Выбрать изображение",
-            command=self.load_image,
-            font=("Arial", 11, "bold"),
-            bg="#4CAF50",
-            fg="white",
-            padx=10,
-            pady=5,
-        )
-        btn_select.pack()
+        # Кнопки управления
+        btn_frame = tk.Frame(self.root)
+        btn_frame.pack(pady=10)
 
-        # Главный контейнер для трех колонок (адаптивная сетка)
-        self.columns_frame = tk.Frame(self.root)
-        self.columns_frame.pack(
-            side=tk.TOP, fill=tk.BOTH, expand=True, padx=10, pady=10
+        tk.Button(
+            btn_frame, text="Рекурсивный", command=lambda: self.run_algo("dfs")
+        ).pack(side=tk.LEFT, padx=5)
+        tk.Button(
+            btn_frame, text="Построчный", command=lambda: self.run_algo("row")
+        ).pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="Сброс", command=self.reset).pack(
+            side=tk.LEFT, padx=5
         )
 
-        # Настраиваем веса колонок, чтобы они одинаково расширялись при растягивании окна
-        self.columns_frame.columnconfigure(0, weight=1)
-        self.columns_frame.columnconfigure(1, weight=1)
-        self.columns_frame.columnconfigure(2, weight=1)
-        self.columns_frame.rowconfigure(0, weight=1)
+    def draw_matrix(self):
+        # Очистка старой сетки
+        for widget in self.grid_frame.winfo_children():
+            widget.destroy()
 
-        # 1 Колонка: Оригинал
-        self.col1 = tk.LabelFrame(
-            self.columns_frame,
-            text="Исходное изображение",
-            font=("Arial", 10, "bold"),
-            labelanchor="n",
-        )
-        self.col1.grid(row=0, column=0, sticky="nsew", padx=5)
-        self.lbl_img1 = tk.Label(self.col1)
-        self.lbl_img1.pack(fill=tk.BOTH, expand=True, pady=5)
+        self.cells = []
+        for i in range(len(self.current_matrix)):
+            row_cells = []
+            for j in range(len(self.current_matrix[0])):
+                val = self.current_matrix[i][j]
+                color = self.get_color(val)
+                lbl = tk.Label(
+                    self.grid_frame,
+                    text=str(val) if val != 0 else "",
+                    width=4,
+                    height=2,
+                    relief="ridge",
+                    bg=color,
+                )
+                lbl.grid(row=i, column=j)
+                row_cells.append(lbl)
+            self.cells.append(row_cells)
 
-        # 2 Колонка: Рекурсивный алгоритм
-        self.col2 = tk.LabelFrame(
-            self.columns_frame,
-            text="Рекурсивный (DFS)",
-            font=("Arial", 10, "bold"),
-            labelanchor="n",
-        )
-        self.col2.grid(row=0, column=1, sticky="nsew", padx=5)
-        self.lbl_img2 = tk.Label(self.col2)
-        self.lbl_img2.pack(fill=tk.BOTH, expand=True, pady=5)
+    def get_color(self, val):
+        if val == 0:
+            return "white"
+        if val == 1:
+            return "#D3D3D3"  # серый для неразмеченных
+        # Для маркеров (2, 3, 4...) выбираем цвет из списка по кругу
+        return self.marker_colors[(val - 2) % len(self.marker_colors)]
 
-        # 3 Колонка: Двухпроходный алгоритм
-        self.col3 = tk.LabelFrame(
-            self.columns_frame,
-            text="Двухпроходный (Two-Pass)",
-            font=("Arial", 10, "bold"),
-            labelanchor="n",
-        )
-        self.col3.grid(row=0, column=2, sticky="nsew", padx=5)
-        self.lbl_img3 = tk.Label(self.col3)
-        self.lbl_img3.pack(fill=tk.BOTH, expand=True, pady=5)
+    def run_algo(self, mode):
+        # Запуск твоего алгоритма
+        if mode == "dfs":
+            res, count = dfs_method(copy.deepcopy(self.current_matrix))
+        else:
+            res, count = row_method(copy.deepcopy(self.current_matrix))
 
-        # Вешаем событие изменения размера окна, чтобы динамически пересчитывать масштаб картинок
-        self.root.bind("<Configure>", self.on_resize)
+        self.current_matrix = res
+        self.draw_matrix()
+        messagebox.showinfo("Готово", f"Объектов найдено: {count}")
 
-    def load_image(self):
-        file_path = filedialog.askopenfilename(
-            title="Выберите изображение",
-            filetypes=[("Images", "*.png *.jpg *.jpeg *.bmp"), ("All files", "*.*")],
-        )
-        if not file_path:
-            return
-
-        # Читаем картинку
-        img_gray = cv2.imread(file_path, cv2.IMREAD_GRAYSCALE)
-        if img_gray is None:
-            return
-
-        # Нам нужен BGR формат для корректного вывода цвета в Tkinter (через RGB conversion)
-        self.img_orig_cv = cv2.cvtColor(img_gray, cv2.COLOR_GRAY2RGB)
-
-        # Запускаем бинаризацию и алгоритмы маркеров
-        binary = binarize_image(img_gray)
-
-        rec_labels = label_recursive(binary)
-        self.img_rec_cv = cv2.cvtColor(color_labels(rec_labels), cv2.COLOR_BGR2RGB)
-        rec_count = len(np.unique(rec_labels)) - 1
-
-        two_labels = label_two_pass(binary)
-        self.img_two_cv = cv2.cvtColor(color_labels(two_labels), cv2.COLOR_BGR2RGB)
-        two_count = len(np.unique(two_labels)) - 1
-
-        # Обновляем текстовые подписи в рамках (LabelFrame) рядом с картинками
-        self.col1.config(text="Исходное изображение")
-        self.col2.config(text=f"Рекурсивный метод\nНайдено объектов: {rec_count}")
-        self.col3.config(text=f"Двухпроходный метод\nНайдено объектов: {two_count}")
-
-        # Отрисовываем картинки с учетом текущего размера окна
-        self.update_images_display()
-
-    def update_images_display(self):
-        if self.img_orig_cv is None:
-            return
-
-        # Вычисляем доступный размер для одной картинки внутри виджета Label
-        # Берем ширину и высоту фрейма-колонки (они делят экран на 3 части)
-        target_w = max(self.col1.winfo_width() - 20, 100)
-        target_h = max(self.col1.winfo_height() - 60, 100)
-
-        def resize_cv_to_tk(cv_img):
-            # Пропорциональное масштабирование (поддерживаем Aspect Ratio)
-            h, w, _ = cv_img.shape
-            scale = min(target_w / w, target_h / h)
-            new_w, new_h = int(w * scale), int(h * scale)
-
-            resized = cv2.resize(cv_img, (new_w, new_h), interpolation=cv2.INTER_AREA)
-            img_pil = Image.fromarray(resized)
-            return ImageTk.PhotoImage(img_pil)
-
-        # Превращаем матрицы в объекты для Tkinter
-        self.photo_orig = resize_cv_to_tk(self.img_orig_cv)
-        self.photo_rec = resize_cv_to_tk(self.img_rec_cv)
-        self.photo_two = resize_cv_to_tk(self.img_two_cv)
-
-        # Обновляем контейнеры
-        self.lbl_img1.config(image=self.photo_orig)
-        self.lbl_img2.config(image=self.photo_rec)
-        self.lbl_img3.config(image=self.photo_two)
-
-    def on_resize(self, event):
-        # Вызываем обновление картинок только при реальном изменении размеров окна приложения
-        if event.widget == self.root:
-            self.update_images_display()
+    def reset(self):
+        self.current_matrix = copy.deepcopy(matrix)
+        self.draw_matrix()
 
 
 if __name__ == "__main__":
-    window = tk.Tk()
-    app = ConnectedComponentsApp(window)
-    window.mainloop()
+    root = tk.Tk()
+    app = App(root)
+    root.mainloop()
